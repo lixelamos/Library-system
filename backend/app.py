@@ -328,31 +328,92 @@ def issue_book_confirm():
     return jsonify({'message': 'Book issued successfully!'}), 201
 
 # Return a book
-@app.route('/returnbook/<int:id>', methods=['GET', 'POST'])
+from flask import jsonify
+from models import Transaction, Stock, Member, Book
+@app.route('/returnbook/<int:id>', methods=['GET','POST'])
 def return_book(id):
-    transaction = db.session.query(Transaction, Member, Book).join(Book).join(Member).filter(Transaction.id == id).first()
+    transaction = Transaction.query.filter_by(id=id).first()
+
+    if not transaction:
+        return jsonify({"error": "Transaction not found"}), 404
+
+    book = Book.query.filter_by(id=transaction.book_id).first()
+    member = Member.query.filter_by(id=transaction.member_id).first()
+
+    if not book or not member:
+        return jsonify({"error": "Book or Member not found"}), 404
+
     rent = calculate_rent(transaction)
-    return jsonify({'transaction': transaction, 'rent': rent})
+    
+    return jsonify({
+        "trans": {
+            "Transaction": transaction.to_dict(),
+            "Book": book.to_dict(),
+            "Member": member.to_dict()
+        },
+        "rent": rent
+    }), 200
+
 
 # Confirm book return
 @app.route('/returnbookconfirm', methods=['POST'])
 def return_book_confirm():
+    print("POST request received at /returnbookconfirm")
     data = request.get_json()
     trans_id = data.get('id')
 
+    # Fetch the transaction record by its ID
     trans = Transaction.query.get(trans_id)
-    stock = Stock.query.filter_by(book_id=trans.book_id).first()
-    charge = Charges.query.first()
+    if not trans:
+        return jsonify({'message': 'Transaction not found!'}), 404
 
+    # Fetch the stock information for the book being returned
+    stock = Stock.query.filter_by(book_id=trans.book_id).first()
+    if not stock:
+        return jsonify({'message': 'Book stock not found!'}), 404
+
+    # Fetch the charges information (e.g., rent fee per day)
+    charge = Charges.query.first()
+    if not charge:
+        return jsonify({'message': 'Charges information not found!'}), 404
+
+    # Calculate the rent fee based on the number of days the book was borrowed
     rent_days = (datetime.date.today() - trans.issue_date.date()).days
     rent_fee = rent_days * charge.rentfee
 
-    stock.available_quantity += 1
-    trans.return_date = datetime.date.today()
-    trans.rent_fee = rent_fee
+    # Fetch the member who borrowed the book
+    member = Member.query.get(trans.member_id)
+    if not member:
+        return jsonify({'message': 'Member not found!'}), 404
 
-    db.session.commit()
-    return jsonify({'message': 'Book returned successfully!', 'rent_fee': rent_fee}), 200
+    # Calculate the member's total outstanding debt, including this transaction
+    current_debt = db.session.query(db.func.sum(Transaction.rent_fee)).filter(
+        Transaction.member_id == member.id,
+        Transaction.return_date == None  # Only consider unreturned books
+    ).scalar() or 0  # Use 0 if no debt found
+
+    new_total_debt = current_debt + rent_fee
+
+    # Check if the member's debt exceeds KES 500
+    if new_total_debt > 500:
+        return jsonify({
+            'message': f'Return denied! Member\'s total debt would exceed 500 KES. Current debt is {current_debt} KES.',
+            'current_debt': current_debt,
+            'new_total_debt': new_total_debt
+        }), 400
+
+    # Update the stock and transaction details if debt is within the limit
+    stock.available_quantity += 1  # Increase the available quantity in stock
+    trans.return_date = datetime.date.today()  # Mark the book as returned
+    trans.rent_fee = rent_fee  # Update the transaction with the rent fee
+
+    db.session.commit()  # Commit the changes to the database
+
+    return jsonify({
+        'message': 'Book returned successfully!',
+        'rent_fee': rent_fee,
+        'total_debt': new_total_debt
+    }), 200
 @app.route('/transactions', methods=['GET', 'POST'])
 def view_borrowings():
     transactions = db.session.query(Transaction, Member, Book).join(Book).join(Member).order_by(desc(Transaction.return_date.is_(None))).all()

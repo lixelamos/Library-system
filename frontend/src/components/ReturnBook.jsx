@@ -1,97 +1,133 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Button, Container, Card } from 'react-bootstrap';
+import { Container, Card, Button } from 'react-bootstrap';
+import axios from 'axios';
+import { useParams } from 'react-router-dom';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
-function ReturnBook() {
-  const { transactionId } = useParams(); // Using the correct param from URL
-  const [transaction, setTransaction] = useState(null); // To store the transaction details
-  const [rent, setRent] = useState(0); // To store rent information
-  const navigate = useNavigate(); // For redirection after confirmation
+const ReturnBook = () => {
+  const { transactionId } = useParams(); // Get transaction ID from the URL
+  const [transaction, setTransaction] = useState(null); // Holds transaction data
+  const [book, setBook] = useState(null); // Holds book details
+  const [member, setMember] = useState(null); // Holds member details
+  const [rent, setRent] = useState(0); // Holds rent fee
+  const [loading, setLoading] = useState(true); // Loading state
+  const [error, setError] = useState(null); // Error state
 
-  // Fetch transaction details
+  // Fetch the transaction details from the API when the component mounts
   useEffect(() => {
-    fetch(`http://127.0.0.1:5000/returnbook/${transactionId}`) // Update the API endpoint if needed
-      .then((response) => response.json())
-      .then((data) => {
-        setTransaction(data.transaction); // Set transaction data
-        setRent(data.rent); // Set rent data
-      })
-      .catch((error) => console.error('Error fetching transaction:', error)); // Handle errors
+    const fetchTransactionDetails = async () => {
+      try {
+        console.log("Fetching transaction details for ID:", transactionId);
+        const response = await axios.get(`http://127.0.0.1:5000/returnbook/${transactionId}`);
+        
+        console.log("API Response:", response.data);
+        setTransaction(response.data.trans); // Set transaction data from the API response
+        setBook(response.data.book); // Set book details
+        setMember(response.data.member); // Set member details
+        setRent(response.data.rent); // Set rent fee
+        setLoading(false); // Stop loading
+      } catch (error) {
+        console.error('Error fetching transaction details:', error);
+        setError('Failed to fetch transaction details.');
+        toast.error('Failed to fetch transaction details!'); // Show error toast
+        setLoading(false); // Stop loading in case of error
+      }
+    };
+
+    fetchTransactionDetails();
   }, [transactionId]);
 
-  // Handle the return of the book
-  const handleReturnBook = () => {
-    if (window.confirm('Are you sure you want to confirm the return?')) {
-      fetch(`http://127.0.0.1:5000/returnbookconfirm`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ id: transactionId }), // Pass transaction ID
-      })
-        .then((response) => response.json())
-        .then(() => {
-          alert('Book return confirmed.'); // Show success message
-          navigate('/transactions'); // Redirect to transactions list
-        })
-        .catch((error) => console.error('Error returning book:', error)); // Handle errors
+  // Handle the form submission for book return confirmation
+  const handleReturnConfirm = () => {
+    const isConfirmed = window.confirm('Are you sure you want to confirm this return?');
+    if (isConfirmed && transaction) {
+        axios.post('http://127.0.0.1:5000/returnbookconfirm', { id: transaction.id })
+  .then(() => {
+    console.log('Book returned successfully!');
+  })
+  .catch((error) => {
+    console.log('Axios Error:', error); // This will show detailed error info
+  });
+
+      
     }
   };
 
-  // Show loading state if transaction is not yet fetched
-  if (!transaction) return <div>Loading...</div>;
+  // Handle loading state
+  if (loading) {
+    return (
+      <Container className="mt-5">
+        <h2>Loading...</h2>
+      </Container>
+    );
+  }
 
+  // Handle error state
+  if (error) {
+    return (
+      <Container className="mt-5">
+        <h2>{error}</h2>
+      </Container>
+    );
+  }
+
+  // Check if transaction, book, and member data are available
+  if (!transaction || !book || !member) {
+    return (
+      <Container className="mt-5">
+        <h2>No transaction data available.</h2>
+      </Container>
+    );
+  }
+
+  // Render the transaction details, book details, and member details
   return (
-    <Container className="mt-4">
-      <h1 className="text-center mb-4">Return Book</h1>
+    <Container className="mt-5">
+      <ToastContainer /> {/* Add the ToastContainer */}
+      <h1 className="mb-4">Return Book</h1>
 
       {/* Transaction Details */}
-      <Card className="mb-4">
+      <Card className="mt-4 shadow">
         <Card.Body>
           <Card.Title>Transaction Details</Card.Title>
-          <p><strong>Book Borrow Date:</strong> {new Date(transaction.issue_date).toLocaleDateString()}</p>
-          <p>
-            <strong>Book Returned Date:</strong>{' '}
-            {transaction.return_date ? new Date(transaction.return_date).toLocaleDateString() : 'Not returned yet'}
-          </p>
-          <p className="text-lg"><strong>Rent Fee:</strong> {rent} KES</p>
+          <Card.Text>Book Borrow Date: {new Date(transaction.issue_date).toLocaleDateString()}</Card.Text>
+          <Card.Text>Book Returned Date: {transaction.return_date ? new Date(transaction.return_date).toLocaleDateString() : 'Not returned yet'}</Card.Text>
+          <Card.Text>Rent Fee: {rent} KES</Card.Text>
         </Card.Body>
       </Card>
 
       {/* Book Details */}
-      <Card className="mb-4">
+      <Card className="mb-4 mt-4 shadow">
         <Card.Body>
-          <Card.Title>Book Details</Card.Title>
-          <p><strong>ID:</strong> {transaction.book.id}</p>
-          <p><strong>Title:</strong> {transaction.book.title}</p>
-          <p><strong>Author:</strong> {transaction.book.author}</p>
-          <p><strong>ISBN:</strong> {transaction.book.isbn}</p>
-          <p><strong>Publisher:</strong> {transaction.book.publisher}</p>
-          <p><strong>Page Count:</strong> {transaction.book.page}</p>
+          <Card.Title>{book.id} : {book.title}</Card.Title>
+          <Card.Text>Author: {book.author}</Card.Text>
+          <Card.Text>ISBN: {book.isbn}</Card.Text>
+          <Card.Text>Publisher: {book.publisher}</Card.Text>
+          <Card.Text>Page Count: {book.page}</Card.Text>
         </Card.Body>
       </Card>
 
       {/* Member Details */}
-      <Card className="mb-4">
+      <Card className="mb-4 mt-4 shadow">
         <Card.Body>
-          <Card.Title>Member Details</Card.Title>
-          <p><strong>Name:</strong> {transaction.member.name}</p>
-          <p><strong>Address:</strong> {transaction.member.address}</p>
-          <p><strong>Phone:</strong> {transaction.member.phone}</p>
-          <p><strong>Email:</strong> {transaction.member.email}</p>
+          <Card.Title>{member.name}</Card.Title>
+          <Card.Text>Address: {member.address}</Card.Text>
+          <Card.Text>Phone: {member.phone}</Card.Text>
+          <Card.Text>Email: {member.email}</Card.Text>
         </Card.Body>
       </Card>
 
-      {/* Return Button */}
+      {/* Confirm Return Button */}
       {!transaction.return_date && (
         <div className="text-center">
-          <Button variant="success" onClick={handleReturnBook}>
+          <Button variant="success" onClick={handleReturnConfirm}>
             Confirm Return
           </Button>
         </div>
       )}
     </Container>
   );
-}
+};
 
 export default ReturnBook;
