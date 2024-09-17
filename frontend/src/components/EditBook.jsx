@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Form, Button, Card } from 'react-bootstrap';
 
+
 function EditBook() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -18,7 +19,7 @@ function EditBook() {
 
   useEffect(() => {
     // Fetch book details for the given id
-    fetch(`http://127.0.0.1:5000/api/books/${id}`)
+    fetch(`http://127.0.0.1:5000/books/${id}`)
       .then((response) => response.json())
       .then((data) => {
         if (data.book) {

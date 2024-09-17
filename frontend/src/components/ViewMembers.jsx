@@ -74,10 +74,10 @@ function ViewMembers() {
                 <td>{member.phone}</td>
                 <td>{member.address}</td>
                 <td>
-                  <Button href={`/edit_member/${member.id}`} variant="success" className="mr-2">
+                  <Button href={`/edit-member/${member.id}`} variant="success" className="mr-2">
                     Edit
                   </Button>
-                  <Button href={`/delete_member/${member.id}`} variant="danger" onClick={() => window.confirm('Are you sure?')}>
+                  <Button href={`/delete-member/${member.id}`} variant="danger" onClick={() => window.confirm('Are you sure?')}>
                     Delete
                   </Button>
                 </td>

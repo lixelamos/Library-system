@@ -14,7 +14,7 @@ const EditMember = ({ memberId, onUpdateSuccess }) => {
         // Fetch member data based on the ID
         const fetchMember = async () => {
             try {
-                const response = await axios.get(`/api/members/${memberId}`); // Adjust the API endpoint as necessary
+                const response = await axios.get(`127.0.0.1:5000/members/${memberId}`); // Adjust the API endpoint as necessary
                 setMember(response.data); // Set member data to state
             } catch (error) {
                 console.error('Error fetching member data:', error);
@@ -31,7 +31,7 @@ const EditMember = ({ memberId, onUpdateSuccess }) => {
     const handleSubmit = async (e) => {
         e.preventDefault(); // Prevent the default form submission
         try {
-            await axios.post(`/api/edit-member/${memberId}`, member); // Update the member
+            await axios.post(`127.0.0.1:5000/edit-member/${memberId}`, member); // Update the member
             if (onUpdateSuccess) {
                 onUpdateSuccess(); // Call the callback to notify of success
             }

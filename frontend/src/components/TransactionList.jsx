@@ -84,7 +84,7 @@ function TransactionList() {
               <tr key={index}>
                 <td>{transaction.trans.id}</td>
                 <td>
-                  <a href={`/view_book/${transaction.book.id}`} className="text-success">
+                  <a href={`/view-book/${transaction.book.id}`} className="text-success">
                     {transaction.book.title}
                   </a>
                 </td>

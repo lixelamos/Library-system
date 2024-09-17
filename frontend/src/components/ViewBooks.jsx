@@ -39,9 +39,12 @@ function ViewBooks() {
           method: 'POST',
         });
         const result = await response.json();
+        console.log(result); // Log the response for debugging
         if (result.message) {
           alert('Book deleted successfully');
           fetchBooks(); // Refresh the book list after deletion
+        } else {
+          alert('Failed to delete the book');
         }
       } catch (error) {
         console.error('Error deleting book:', error);
@@ -102,7 +105,7 @@ function ViewBooks() {
                   {book.stock ? `Total: ${book.stock.total_quantity}, Available: ${book.stock.available_quantity}` : 'No stock information'}
                 </td>
                 <td>
-                  <Link to={`/edit_book/${book.id}`} className="btn btn-success me-2">
+                  <Link to={`/edit-book/${book.id}`} className="btn btn-success me-2">
                     Edit
                   </Link>
                   <Button
