@@ -1,71 +1,128 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Container, Row, Col, Card, Table } from 'react-bootstrap';
 
 function Dashboard() {
-  const [stats, setStats] = useState({ borrowed_books: 0, total_books: 0, total_members: 0, total_rent_current_month: 0 });
+  const [stats, setStats] = useState({
+    borrowed_books: 0,
+    total_books: 0,
+    total_members: 0,
+    total_transactions: 0,
+    total_rent_current_month: 0,
+  });
   const [recentTransactions, setRecentTransactions] = useState([]);
 
+  // Fetching statistics and recent transactions
   useEffect(() => {
+    // Fetching statistics and recent transactions
     fetch('http://127.0.0.1:5000/')
-      .then(res => res.json())
-      .then(data => {
+      .then((res) => res.json())
+      .then((data) => {
         setStats({
-          borrowed_books: data.borrowed_books,
-          total_books: data.total_books,
-          total_members: data.total_members,
-          total_rent_current_month: data.total_rent_current_month
+          borrowed_books: data.borrowed_books || 0,
+          total_books: data.total_books || 0,
+          total_members: data.total_members || 0,
+          total_transactions: data.total_transactions || 0,
+          total_rent_current_month: data.total_rent_current_month || 0,
         });
-        setRecentTransactions(data.recent_transactions);
       })
-      .catch(error => console.error('Error fetching dashboard data:', error));
+      .catch((error) => console.error('Error fetching dashboard data:', error));
+  
+    // Fetching recent transactions
+    fetch('http://127.0.0.1:5000/transactions', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        console.log("Fetched Transactions:", data); // Add this line to inspect the response structure
+        setRecentTransactions(data);
+      })
+      .catch((error) => console.error('Error fetching transactions:', error));
   }, []);
+  
 
   return (
-    <div className="dashboard">
-      <h2 className="mb-4">Dashboard</h2>
-      <div className="row">
-        <div className="col-md-3">
-          <div className="card text-white bg-primary mb-3">
-            <div className="card-body">
-              <h5 className="card-title">Borrowed Books</h5>
-              <p className="card-text">{stats.borrowed_books}</p>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card text-white bg-success mb-3">
-            <div className="card-body">
-              <h5 className="card-title">Total Books</h5>
-              <p className="card-text">{stats.total_books}</p>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card text-white bg-warning mb-3">
-            <div className="card-body">
-              <h5 className="card-title">Total Members</h5>
-              <p className="card-text">{stats.total_members}</p>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card text-white bg-info mb-3">
-            <div className="card-body">
-              <h5 className="card-title">Total Rent (This Month)</h5>
-              <p className="card-text">{stats.total_rent_current_month} KES</p>
-            </div>
-          </div>
-        </div>
-      </div>
+    <Container fluid className="mt-4">
+      {/* Displaying statistics */}
+      <Row className="mb-4">
+        <Col md={3}>
+          <Card className="text-white bg-primary mb-3">
+            <Card.Body>
+              <Card.Title>Borrowed Books</Card.Title>
+              <Card.Text>{stats.borrowed_books}</Card.Text>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={3}>
+          <Card className="text-white bg-success mb-3">
+            <Card.Body>
+              <Card.Title>Total Books</Card.Title>
+              <Card.Text>{stats.total_books}</Card.Text>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={3}>
+          <Card className="text-white bg-warning mb-3">
+            <Card.Body>
+              <Card.Title>Total Members</Card.Title>
+              <Card.Text>{stats.total_members}</Card.Text>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={3}>
+          <Card className="text-white bg-info mb-3">
+            <Card.Body>
+              <Card.Title>Total Rent (This Month)</Card.Title>
+              <Card.Text>{stats.total_rent_current_month} KES</Card.Text>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
 
-      <h4>Recent Transactions</h4>
-      <ul className="list-group">
-        {recentTransactions.map((transaction, index) => (
-          <li key={index} className="list-group-item">
-            {transaction.Book.title} - {transaction.Transaction.issue_date}
-          </li>
-        ))}
-      </ul>
-    </div>
+      {/* Displaying recent transactions */}
+      <h4 className="mt-4">Recent Transactions</h4>
+      <Table striped bordered hover>
+        <thead>
+          <tr>
+            <th>Transaction ID</th>
+            <th>Book Title</th>
+            <th>Rent Fee</th>
+            <th>Issue Date</th>
+          </tr>
+        </thead>
+        <tbody>
+  {recentTransactions.length > 0 ? (
+    recentTransactions.map((transaction, index) => (
+      <tr key={index}>
+        {/* Access the transaction id from the `trans` object */}
+        <td>{transaction.trans.id}</td>
+        
+        {/* Access the book title from the `book` object */}
+        <td>{transaction.book.title}</td>
+        
+        {/* Access the rent fee from the `trans` object */}
+        <td>KES {transaction.trans.rent_fee}</td>
+        
+        {/* Access and format the issue date from the `trans` object */}
+        <td>
+          {isNaN(Date.parse(transaction.trans.issue_date))
+            ? 'Invalid Date'
+            : new Date(transaction.trans.issue_date).toLocaleDateString()}
+        </td>
+      </tr>
+    ))
+  ) : (
+    <tr>
+      <td colSpan="4" className="text-center">No transactions found</td>
+    </tr>
+  )}
+</tbody>
+
+
+      </Table>
+    </Container>
   );
 }
 

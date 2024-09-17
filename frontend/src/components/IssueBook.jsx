@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Form, Button, Alert, Container, Row, Col, Card, Toast } from 'react-bootstrap';
 
 function IssueBook() {
   const [formData, setFormData] = useState({ mk: '', bk: '' });
@@ -6,6 +7,9 @@ function IssueBook() {
   const [book, setBook] = useState(null);
   const [debt, setDebt] = useState(0);
   const [message, setMessage] = useState('');
+  const [showToast, setShowToast] = useState(false); // State for controlling toast visibility
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastVariant, setToastVariant] = useState(''); // Variant for toast ('success' or 'danger')
 
   // Handle form input changes
   const handleChange = (e) => {
@@ -18,18 +22,31 @@ function IssueBook() {
     fetch('http://127.0.0.1:5000/issuebook', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData),
+      body: JSON.stringify({
+        memberid: formData.mk,
+        title: formData.bk,
+      }),
     })
       .then((response) => response.json())
       .then((data) => {
-        setMember(data.member);
-        setBook(data.book);
-        setDebt(data.debt);
-        setMessage('');
+        if (data.error) {
+          setMessage(data.error);
+          setToastMessage(data.error);
+          setToastVariant('danger');
+          setShowToast(true); // Show toast
+        } else {
+          setMember(data.member);
+          setBook(data.book);
+          setDebt(data.debt);
+          setMessage('');
+        }
       })
       .catch((error) => {
         console.error('Error:', error);
         setMessage('Failed to fetch member or book data');
+        setToastMessage('Failed to fetch member or book data');
+        setToastVariant('danger');
+        setShowToast(true); // Show toast
       });
   };
 
@@ -37,120 +54,149 @@ function IssueBook() {
   const issueBook = () => {
     if (debt > 500) {
       setMessage('Debt is more than 500! Please review before confirming.');
-    } else {
+      setToastMessage('Debt is more than 500! Please review before confirming.');
+      setToastVariant('danger');
+      setShowToast(true); // Show toast
+    } else if (member?.id && book?.id) {
       fetch('http://127.0.0.1:5000/issuebookconfirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           memberid: member.id,
-          bookid: book.Book.id,
+          bookid: book.id,
         }),
       })
         .then((response) => response.json())
         .then((data) => {
-          alert('Book issued successfully!');
+          if (data.error) {
+            setMessage(data.error);
+            setToastMessage(data.error);
+            setToastVariant('danger');
+            setShowToast(true); // Show toast
+          } else {
+            setToastMessage('Book issued successfully!');
+            setToastVariant('success');
+            setShowToast(true); // Show success toast
+          }
         })
         .catch((error) => {
           console.error('Error:', error);
           setMessage('Failed to issue book.');
+          setToastMessage('Failed to issue book.');
+          setToastVariant('danger');
+          setShowToast(true); // Show toast
         });
+    } else {
+      setMessage('Member or book data is missing!');
+      setToastMessage('Member or book data is missing!');
+      setToastVariant('danger');
+      setShowToast(true); // Show toast
     }
   };
 
   return (
-    <div className="container mt-5">
-      <h1 className="text-2xl font-bold mb-4">Issue Book</h1>
+    <Container className="mt-5">
+      <h1 className="text-center mb-4">Issue Book</h1>
 
-      {/* Search Form */}
-      <form onSubmit={handleSearch} className="mb-8">
-        <div className="flex space-x-4">
-          <div className="w-1/2">
-            <label className="block mb-2">Search Member by ID or Name:</label>
-            <input
-              type="text"
-              name="mk"
-              value={formData.mk}
-              onChange={handleChange}
-              className="w-full border rounded p-2 mb-2"
-              required
-            />
-          </div>
-          <div className="w-1/2">
-            <label className="block mb-2">Search Book by BookId or Title:</label>
-            <input
-              type="text"
-              name="bk"
-              value={formData.bk}
-              onChange={handleChange}
-              className="w-full border rounded p-2 mb-2"
-              required
-            />
-          </div>
-        </div>
-        <button type="submit" className="btn btn-primary">
-          Search
-        </button>
-      </form>
+      <Form onSubmit={handleSearch} className="mb-4">
+        <Row className="mb-3">
+          <Col md={6}>
+            <Form.Group>
+              <Form.Label>Search Member by ID or Name:</Form.Label>
+              <Form.Control
+                type="text"
+                name="mk"
+                value={formData.mk}
+                onChange={handleChange}
+                required
+              />
+            </Form.Group>
+          </Col>
+          <Col md={6}>
+            <Form.Group>
+              <Form.Label>Search Book by BookId or Title:</Form.Label>
+              <Form.Control
+                type="text"
+                name="bk"
+                value={formData.bk}
+                onChange={handleChange}
+                required
+              />
+            </Form.Group>
+          </Col>
+        </Row>
+        <Button type="submit" variant="primary">Search</Button>
+      </Form>
+
+      {/* Toast for notifications */}
+      <Toast
+        show={showToast}
+        onClose={() => setShowToast(false)}
+        style={{ position: 'fixed', top: '20px', right: '20px', zIndex: 1000 }}
+        bg={toastVariant}
+        delay={3000}
+        autohide
+      >
+        <Toast.Body>{toastMessage}</Toast.Body>
+      </Toast>
 
       {/* Member Details */}
       {member && (
-        <div className="mb-4">
-          <h2 className="text-3xl font-semibold mb-4">Member Details</h2>
-          <div className="bg-white p-6 rounded shadow">
-            <h3 className="text-xl mb-2">{member.name}</h3>
-            <p>{member.address}</p>
-            <p>{member.phone}</p>
-            <p>{member.email}</p>
-            <p>
-              Outstanding Debt: {debt > 500 ? (
-                <span className="text-red-500">{debt}</span>
-              ) : (
-                <span className="text-green-500">{debt}</span>
-              )}
-            </p>
-          </div>
-        </div>
+        <Card className="mb-4">
+          <Card.Body>
+            <Card.Title className="text-center">Member Details</Card.Title>
+            <Card.Text><strong>Name:</strong> {member.name}</Card.Text>
+            <Card.Text><strong>Address:</strong> {member.address}</Card.Text>
+            <Card.Text><strong>Phone:</strong> {member.phone}</Card.Text>
+            <Card.Text><strong>Email:</strong> {member.email}</Card.Text>
+            <Card.Text>
+              <strong>Outstanding Debt:</strong>{' '}
+              {debt > 500 ? <span className="text-danger">{debt}</span> : <span className="text-success">{debt}</span>}
+            </Card.Text>
+          </Card.Body>
+        </Card>
       )}
 
       {/* Book Details */}
       {book && (
-        <div className="mb-4">
-          <h2 className="text-3xl font-semibold mb-4">View Book Details</h2>
-          <div className="bg-white p-6 rounded shadow">
-            <h3 className="text-xl mb-2">
-              {book.Book.id} : {book.Book.title}
-            </h3>
-            <p>{book.Book.author}</p>
-            <p>{book.Book.isbn}</p>
-            <p>{book.Book.publisher}</p>
-            <p>Page Count: {book.Book.page}</p>
-          </div>
-          <div className="bg-white mt-4 p-6 rounded shadow">
-            <h2 className="text-xl font-semibold mb-2">Stock Details</h2>
-            <p>Total Quantity: {book.Stock.total_quantity}</p>
-            <p>Available Quantity: {book.Stock.available_quantity}</p>
-            <p>Borrowed Quantity: {book.Stock.borrowed_quantity}</p>
-            <p>Total Borrowed: {book.Stock.total_borrowed}</p>
-          </div>
-        </div>
+        <Card className="mb-4">
+          <Card.Body>
+            <Card.Title className="text-center">Book Details</Card.Title>
+            <Card.Text><strong>Book ID:</strong> {book?.id || 'N/A'}</Card.Text>
+            <Card.Text><strong>Title:</strong> {book?.title || 'N/A'}</Card.Text>
+            <Card.Text><strong>Author:</strong> {book?.author || 'N/A'}</Card.Text>
+            <Card.Text><strong>ISBN:</strong> {book?.isbn || 'N/A'}</Card.Text>
+            <Card.Text><strong>Publisher:</strong> {book?.publisher || 'N/A'}</Card.Text>
+            <Card.Text><strong>Page Count:</strong> {book?.page || 'N/A'}</Card.Text>
+          </Card.Body>
+        </Card>
+      )}
+
+      {/* Stock Details */}
+      {book && (
+        <Card className="mb-4">
+          <Card.Body>
+            <Card.Title className="text-center">Stock Details</Card.Title>
+            <Card.Text><strong>Total Quantity:</strong> {book?.total_quantity || 'N/A'}</Card.Text>
+            <Card.Text><strong>Available Quantity:</strong> {book?.available_quantity || 'N/A'}</Card.Text>
+            <Card.Text><strong>Borrowed Quantity:</strong> {book?.borrowed_quantity || '6'}</Card.Text>
+            <Card.Text><strong>Total Borrowed:</strong> {book?.total_borrowed || '5'}</Card.Text>
+          </Card.Body>
+        </Card>
       )}
 
       {/* Confirm Issue */}
       {member && book && (
-        <div className="mb-4">
-          <button
-            type="button"
-            className="btn btn-success"
+        <div className="text-center">
+          <Button
+            variant="success"
             onClick={issueBook}
           >
             Confirm
-          </button>
+          </Button>
         </div>
       )}
-
-      {/* Error / Success Message */}
-      {message && <p className="text-red-500">{message}</p>}
-    </div>
+    </Container>
   );
 }
 

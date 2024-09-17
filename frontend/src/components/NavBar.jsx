@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FaHome, FaBook, FaUserFriends, FaExchangeAlt, FaPlusSquare, FaBookReader, FaDownload } from 'react-icons/fa'; // Example icons from react-icons
+import { FaHome, FaBook, FaUserFriends, FaExchangeAlt, FaPlusSquare, FaBookReader, FaDownload } from 'react-icons/fa'; 
 
 function Navbar() {
   return (
@@ -22,7 +22,7 @@ function Navbar() {
         {/* Book Section */}
         <li className="nav-item mb-3">
           <span className="nav-header text-uppercase" style={{ fontSize: '12px', fontWeight: 'bold', color: '#6c757d' }}>Book</span>
-          <Link className="nav-link" to="/books">
+          <Link className="nav-link" to="/view-books">
             <FaBook className="me-2" /> Books
           </Link>
           <Link className="nav-link" to="/add-book">

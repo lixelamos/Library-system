@@ -11,8 +11,11 @@ import ViewBook from './components/ViewBook';
 import IssueBook from './components/IssueBook';
 import ImportBooks from './components/ImportBooks';
 import ViewBooks from './components/ViewBooks';
+import ViewMember from './components/ViewMember';
 import ReturnBook from './components/ReturnBook';
 import StockUpdate from './components/StockUpdate';
+import EditBook from './components/EditBook';
+import EditMember from './components/EditMember';
 
 function App() {
   return (
@@ -29,11 +32,17 @@ function App() {
             <Route path="/transactions" element={<TransactionList />} />
             <Route path="/view-book" element={<ViewBook />} />
             <Route path="/issue-book" element={<IssueBook />} />
-            <Route path="/view-member" element={<IssueBook />} />
+            <Route path="/view-member" element={<ViewMember />} />
             <Route path="/import-books" element={<ImportBooks />} />
             <Route path="/view-books" element={<ViewBooks />} />
-            <Route path="/return-book" element={<ReturnBook />} />
+            <Route path="/returnbook/:id" element={<ReturnBook />} />
             <Route path="/stock-update" element={<StockUpdate />} />
+            <Route path="/edit-book/:id" element={<EditBook />} />
+            <Route path="/view-book/:id" element={<ViewBook />} />
+            <Route path="/edit-member/:id" element={<EditMember />} />
+            <Route path="/view_member/:id" element={<ViewMember />} />
+
+
             
 
 

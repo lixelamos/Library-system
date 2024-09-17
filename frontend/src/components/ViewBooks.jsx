@@ -9,15 +9,16 @@ function ViewBooks() {
 
   // Fetch books when the component mounts or after search
   useEffect(() => {
-    fetchBooks();
+    fetchBooks(); // Fetch all books initially
   }, []);
 
   const fetchBooks = async (title = '', author = '') => {
     try {
+      const method = title || author ? 'POST' : 'GET'; // Use POST for search, GET for fetching all
       const response = await fetch('http://127.0.0.1:5000/view_books', {
-        method: 'POST',
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ searcht: title, searcha: author }),
+        body: method === 'POST' ? JSON.stringify({ searcht: title, searcha: author }) : null,
       });
       const data = await response.json();
       setBooks(data);
@@ -31,10 +32,20 @@ function ViewBooks() {
     fetchBooks(searchTitle, searchAuthor);
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this book?')) {
-      // Delete book API logic here
-      console.log('Deleted book with ID:', id);
+      try {
+        const response = await fetch(`http://127.0.0.1:5000/delete-book/${id}`, {
+          method: 'POST',
+        });
+        const result = await response.json();
+        if (result.message) {
+          alert('Book deleted successfully');
+          fetchBooks(); // Refresh the book list after deletion
+        }
+      } catch (error) {
+        console.error('Error deleting book:', error);
+      }
     }
   };
 
@@ -76,11 +87,11 @@ function ViewBooks() {
         </thead>
         <tbody>
           {books.length > 0 ? (
-            books.map(({ book, stock }, index) => (
+            books.map((book, index) => (
               <tr key={index}>
-                <td>{book.id}</td>
+                <td>{book.id}</td> {/* Access directly from book */}
                 <td>
-                  <Link to={`/view_book/${book.id}`} className="text-primary">
+                  <Link to={`/view-book/${book.id}`} className="text-primary">
                     {book.title}
                   </Link>
                 </td>
@@ -88,7 +99,7 @@ function ViewBooks() {
                 <td>{book.isbn}</td>
                 <td>{book.publisher}</td>
                 <td>
-                  Total: {stock.total_quantity}, Available: {stock.available_quantity}
+                  {book.stock ? `Total: ${book.stock.total_quantity}, Available: ${book.stock.available_quantity}` : 'No stock information'}
                 </td>
                 <td>
                   <Link to={`/edit_book/${book.id}`} className="btn btn-success me-2">

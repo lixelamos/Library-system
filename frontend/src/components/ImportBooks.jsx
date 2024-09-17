@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
 
-const API_BASE_URL = 'https://frappe.io/api/method/frappe-library';
+const API_BASE_URL = 'http://localhost:5000/proxy_import_books'; // Your Flask proxy URL
 
 function ImportBooks() {
   const [title, setTitle] = useState('');
@@ -15,25 +15,15 @@ function ImportBooks() {
     e.preventDefault();
     setLoading(true);
     setMessage('');
-  
-    fetch(`${API_BASE_URL}?title=${title}&limit=${numBooks}`, { mode: 'no-cors' })
-  
+
+    fetch(`${API_BASE_URL}?title=${title}&limit=${numBooks}`)
       .then((response) => {
-        console.log('API Response:', response); // Check response status and headers
-  
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-  
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          throw new Error('Received non-JSON response');
-        }
-  
         return response.json();
       })
       .then((data) => {
-        console.log('Fetched Data:', data); // Log the fetched data
         setBooks(data.message || []);
         setLoading(false);
         if (!data.message || data.message.length === 0) {
@@ -41,13 +31,11 @@ function ImportBooks() {
         }
       })
       .catch((error) => {
-        console.error('Error fetching books:', error.message || error);
         setLoading(false);
         setMessage('Error fetching books.');
+        console.error('Error fetching books:', error);
       });
   };
-  
-  
 
   return (
     <div className="container mt-5">

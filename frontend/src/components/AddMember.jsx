@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 function AddMember() {
   const [formData, setFormData] = useState({
@@ -62,6 +64,12 @@ function AddMember() {
     }
 
     setErrors(newErrors);
+
+    // If any field is missing, show a toast
+    if (!isValid) {
+      toast.error('Error: All fields must be filled correctly!');
+    }
+
     return isValid;
   };
 
@@ -79,21 +87,21 @@ function AddMember() {
         },
         body: JSON.stringify(formData),
       })
-      .then(response => response.json())
-      .then(data => {
-        if (data.message) {
-          alert('Member added successfully');
-          setFormData({ name: '', email: '', phone: '', address: '' }); // Reset the form
-        } else {
-          alert('Error adding member');
-        }
-      })
-      .catch(error => {
-        console.error('Error:', error);
-      });
+        .then(response => response.json())
+        .then(data => {
+          if (data.message) {
+            toast.success('Member added successfully');
+            setFormData({ name: '', email: '', phone: '', address: '' }); // Reset the form
+          } else {
+            toast.error('Error adding member');
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          toast.error('Error adding member. Please try again.');
+        });
     }
   };
-  
 
   return (
     <div className="container mt-5">
@@ -153,6 +161,9 @@ function AddMember() {
 
           <button type="submit" className="btn btn-primary">ADD</button>
         </form>
+
+        {/* Toast Container for notifications */}
+        <ToastContainer />
       </div>
     </div>
   );

@@ -3,36 +3,42 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button, Container, Card } from 'react-bootstrap';
 
 function ReturnBook() {
-  const { transactionId } = useParams();
-  const [transaction, setTransaction] = useState(null);
-  const [rent, setRent] = useState(0);
-  const navigate = useNavigate();
+  const { transactionId } = useParams(); // Using the correct param from URL
+  const [transaction, setTransaction] = useState(null); // To store the transaction details
+  const [rent, setRent] = useState(0); // To store rent information
+  const navigate = useNavigate(); // For redirection after confirmation
 
   // Fetch transaction details
   useEffect(() => {
-    fetch(`http://127.0.0.1:5000/api/transaction/${transactionId}`)
+    fetch(`http://127.0.0.1:5000/returnbook/${transactionId}`) // Update the API endpoint if needed
       .then((response) => response.json())
       .then((data) => {
-        setTransaction(data.transaction);
-        setRent(data.rent); // Assuming `rent` is returned from the API
+        setTransaction(data.transaction); // Set transaction data
+        setRent(data.rent); // Set rent data
       })
-      .catch((error) => console.error('Error fetching transaction:', error));
+      .catch((error) => console.error('Error fetching transaction:', error)); // Handle errors
   }, [transactionId]);
 
+  // Handle the return of the book
   const handleReturnBook = () => {
     if (window.confirm('Are you sure you want to confirm the return?')) {
-      fetch(`http://127.0.0.1:5000/returnbook/${transactionId}`, {
+      fetch(`http://127.0.0.1:5000/returnbookconfirm`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id: transactionId }), // Pass transaction ID
       })
         .then((response) => response.json())
         .then(() => {
-          alert('Book return confirmed.');
+          alert('Book return confirmed.'); // Show success message
           navigate('/transactions'); // Redirect to transactions list
         })
-        .catch((error) => console.error('Error returning book:', error));
+        .catch((error) => console.error('Error returning book:', error)); // Handle errors
     }
   };
 
+  // Show loading state if transaction is not yet fetched
   if (!transaction) return <div>Loading...</div>;
 
   return (

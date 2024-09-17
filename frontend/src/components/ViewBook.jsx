@@ -8,7 +8,7 @@ function ViewBook() {
 
   useEffect(() => {
     // Fetch data from the API when the component is mounted
-    fetch('http://127.0.0.1:5000/view_book')
+    fetch('http://127.0.0.1:5000/view_books')
       .then(response => response.json())
       .then(data => {
         // Assuming the response contains the book, stock, and transactions data

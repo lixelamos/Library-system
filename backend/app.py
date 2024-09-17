@@ -1,11 +1,12 @@
-from flask import Flask, render_template, request, redirect, flash, url_for, jsonify
+from flask import Flask, request, jsonify
 from flask_migrate import Migrate
 from models import db, Book, Member, Transaction, Stock, Charges
-import datetime
 import requests
-from sqlalchemy import desc
+import datetime
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import desc  # Add this import for ordering
 from flask_cors import CORS
+
 app = Flask(__name__)
 CORS(app)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///library.db'
@@ -13,16 +14,22 @@ app.config['SECRET_KEY'] = 'af9d4e10d142994285d0c1f861a70925'
 db.init_app(app)
 migrate = Migrate(app, db)
 
+# Index route to return summary data
 @app.route('/')
 def index():
     borrowed_books = db.session.query(Transaction).filter(Transaction.return_date == None).count()
     total_books = Book.query.count()
     total_members = Member.query.count()
     total_rent_current_month = calculate_total_rent_current_month()
-    recent_transactions = db.session.query(Transaction, Book).join(Book).order_by(Transaction.issue_date.desc()).limit(5).all()
 
-    return render_template('index.html', borrowed_books=borrowed_books, total_books=total_books, total_members=total_members, recent_transactions=recent_transactions, total_rent_current_month=total_rent_current_month)
+    return jsonify({
+        'borrowed_books': borrowed_books,
+        'total_books': total_books,
+        'total_members': total_members,
+        'total_rent_current_month': total_rent_current_month
+    })
 
+# Helper function to calculate rent
 def calculate_total_rent_current_month():
     current_month = datetime.datetime.now().month
     current_year = datetime.datetime.now().year
@@ -33,6 +40,7 @@ def calculate_total_rent_current_month():
 
     return total_rent if total_rent else 0
 
+# Add a new book
 @app.route('/add_book', methods=['POST'])
 def add_book():
     data = request.get_json()
@@ -56,6 +64,7 @@ def add_book():
 
     return jsonify({'message': 'Book added successfully!'}), 201
 
+# Add a new member
 @app.route('/add_member', methods=['POST'])
 def add_member():
     data = request.get_json()
@@ -73,36 +82,88 @@ def add_member():
 
     return jsonify({'message': 'Member added successfully!'}), 201
 
-@app.route('/view_books', methods=['POST'])
+# View all books or search books
+@app.route('/view_books', methods=['GET', 'POST'])
 def book_list():
-    data = request.get_json()
-    title = data.get('searcht')
-    author = data.get('searcha')
+    data = request.get_json() if request.method == 'POST' else {}
+    title = data.get('searcht', '')
+    author = data.get('searcha', '')
 
-    if title and author:
-        books = db.session.query(Book, Stock).join(Stock).filter(Book.title.like(f'%{title}%'), Book.author.like(f'%{author}%')).all()
-    elif title:
-        books = db.session.query(Book, Stock).join(Stock).filter(Book.title.like(f'%{title}%')).all()
-    elif author:
-        books = db.session.query(Book, Stock).join(Stock).filter(Book.author.like(f'%{author}%')).all()
-    else:
-        books = db.session.query(Book, Stock).join(Stock).all()
+    query = db.session.query(Book, Stock).join(Stock)
+    
+    if title:
+        query = query.filter(Book.title.ilike(f'%{title}%'))
+    
+    if author:
+        query = query.filter(Book.author.ilike(f'%{author}%'))
+    
+    books = query.all()
+    
+    return jsonify([{
+        'id': book.id,
+        'title': book.title,
+        'author': book.author,
+        'isbn': book.isbn,
+        'publisher': book.publisher,
+        'page': book.page,
+        'stock': {
+            'total_quantity': stock.total_quantity,
+            'available_quantity': stock.available_quantity,
+        }
+    } for book, stock in books])
+@app.route('/view_book/<int:id>', methods=['GET'])
+def view_book(id):
+    book = Book.query.get(id)
+    stock = Stock.query.filter_by(book_id=id).first()
+    transactions = Transaction.query.filter_by(book_id=id).all()
 
-    return jsonify([{'title': book.title, 'author': book.author, 'stock': stock.total_quantity} for book, stock in books])
+    if not book:
+        return jsonify({'error': 'Book not found'}), 404
 
-@app.route('/view_members', methods=['POST'])
+    return jsonify({
+        'book': {
+            'id': book.id,
+            'title': book.title,
+            'author': book.author,
+            'isbn': book.isbn,
+            'publisher': book.publisher,
+            'page': book.page,
+        },
+        'stock': {
+            'total_quantity': stock.total_quantity if stock else 0,
+            'available_quantity': stock.available_quantity if stock else 0
+        },
+        'transactions': [
+            {
+                'id': trans.id,
+                'issue_date': trans.issue_date,
+                'return_date': trans.return_date
+            } for trans in transactions
+        ]
+    }), 200
+
+
+# View all members or search members
+@app.route('/view_members', methods=['GET', 'POST'])
 def member_list():
-    data = request.get_json()
-    search = data.get('search')
+    data = request.get_json() if request.method == 'POST' else {}
+    search = data.get('search', '')
 
+    query = db.session.query(Member)
     if search:
-        members = db.session.query(Member).filter(Member.name.like(f'%{search}%')).all()
-    else:
-        members = db.session.query(Member).all()
+        query = query.filter(Member.name.like(f'%{search}%'))
 
-    return jsonify([{'name': member.name, 'email': member.email} for member in members])
+    members = query.all()
+    return jsonify([{
+        'id': member.id,
+        'name': member.name,
+        'email': member.email,
+        'phone': member.phone,
+        'address': member.address,
+    } for member in members])
 
-@app.route('/edit_book/<int:id>', methods=['POST'])
+# Edit book details
+@app.route('/edit_book/<int:id>', methods=['GET','POST'])
 def edit_book(id):
     book = Book.query.get(id)
     stock = Stock.query.get(book.id)
@@ -122,7 +183,8 @@ def edit_book(id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-@app.route('/edit_member/<int:id>', methods=['POST'])
+# Edit member details
+@app.route('/edit_member/<int:id>', methods=['GET','POST'])
 def edit_member(id):
     member = Member.query.get(id)
     data = request.get_json()
@@ -139,7 +201,8 @@ def edit_member(id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-@app.route('/delete_member/<int:id>', methods=['POST'])
+# Delete member
+@app.route('/delete_member/<int:id>', methods=['GET','POST'])
 def delete_member(id):
     try:
         member = Member.query.get(id)
@@ -149,7 +212,8 @@ def delete_member(id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/delete_book/<int:id>', methods=['POST'])
+# Delete book
+@app.route('/delete_book/<int:id>', methods=['GET','POST'])
 def delete_book(id):
     try:
         book = Book.query.get(id)
@@ -161,102 +225,185 @@ def delete_book(id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/issuebook', methods=['POST'])
+# View a member and their transactions
+@app.route('/view_member/<int:id>', methods=['GET'])
+def view_member(id):
+    member = Member.query.get(id)
+    if not member:
+        return jsonify({'error': 'Member not found'}), 404
+    
+    transactions = Transaction.query.filter_by(member_id=member.id).all()
+    debt = calculate_dbt(member)
+
+    return jsonify({
+        'member': {
+            'id': member.id,
+            'name': member.name,
+            'email': member.email,
+            'phone': member.phone,
+            'address': member.address,
+        },
+        'transactions': [{
+            'id': trans.id,
+            'issue_date': trans.issue_date,
+            'return_date': trans.return_date,
+            'rent_fee': trans.rent_fee
+        } for trans in transactions],
+        'debt': debt
+    })
+
+# Calculate debt function
+def calculate_dbt(member):
+    dbt = 0
+    charge = db.session.query(Charges).first()
+    transactions = db.session.query(Transaction).filter_by(member_id=member.id, return_date=None).all()
+
+    for transaction in transactions:
+        days_difference = (datetime.date.today() - transaction.issue_date.date()).days
+        if days_difference > 0:
+            dbt += days_difference * charge.rentfee
+    return dbt
+
+# Issue book to a member
+@app.route('/issuebook', methods=['GET', 'POST'])
 def issue_book():
     data = request.get_json()
     memberid = data.get('memberid')
     title = data.get('title')
 
-    book = db.session.query(Book, Stock).join(Stock).filter(Book.title.like(f'%{title}%')).first() or db.session.query(Book, Stock).join(Stock).filter(Book.id == title).first()
+    # Query for the book
+    book = db.session.query(Book, Stock).join(Stock).filter(Book.title.like(f'%{title}%')).first()
+
+    if not book:
+        return jsonify({'error': 'Book not found'}), 404
+
+    # Query for the member
     member = db.session.query(Member).get(memberid)
+
+    if not member:
+        return jsonify({'error': 'Member not found'}), 404
+
     debt = calculate_dbt(member)
 
-    return jsonify({'book': book.title, 'member': member.name, 'debt': debt})
+    # Adjust the structure of the response
+    return jsonify({
+        'book': {
+            'id': book.Book.id,
+            'title': book.Book.title,
+            'author': book.Book.author,
+            'isbn': book.Book.isbn,
+            'publisher': book.Book.publisher,
+            'page': book.Book.page,
+            'total_quantity': book.Stock.total_quantity,
+            'available_quantity': book.Stock.available_quantity,
+            'borrowed_quantity': book.Stock.borrowed_quantity,
+            'total_borrowed': book.Stock.total_borrowed
+        },
+        'member': {
+            'id': member.id,
+            'name': member.name,
+            'address': member.address,
+            'phone': member.phone,
+            'email': member.email
+        },
+        'debt': debt
+    })
 
-@app.route('/issuebookconfirm', methods=['POST'])
+# Confirm book issuance
+@app.route('/issuebookconfirm', methods=['GET','POST'])
 def issue_book_confirm():
     data = request.get_json()
     memberid = data.get('memberid')
     bookid = data.get('bookid')
 
     stock = db.session.query(Stock).filter_by(book_id=bookid).first()
-
     if stock.available_quantity <= 0:
-        return jsonify({'error': 'Book is not available for issuance.'}), 400
+        return jsonify({'error': 'Book not available'}), 400
 
     new_transaction = Transaction(book_id=bookid, member_id=memberid, issue_date=datetime.date.today())
     stock.available_quantity -= 1
-    stock.borrowed_quantity += 1
-    stock.total_borrowed += 1
-
     db.session.add(new_transaction)
     db.session.commit()
 
-    return jsonify({'message': 'Transaction added successfully!'}), 201
+    return jsonify({'message': 'Book issued successfully!'}), 201
 
-@app.route('/transactions', methods=['POST'])
-def view_borrowings():
-    data = request.get_json()
-    search = data.get('search')
+# Return a book
+@app.route('/returnbook/<int:id>', methods=['GET', 'POST'])
+def return_book(id):
+    transaction = db.session.query(Transaction, Member, Book).join(Book).join(Member).filter(Transaction.id == id).first()
+    rent = calculate_rent(transaction)
+    return jsonify({'transaction': transaction, 'rent': rent})
 
-    if search:
-        transactions = db.session.query(Transaction, Member, Book).join(Book).join(Member).filter(Member.name.like(f'%{search}%')).all()
-    else:
-        transactions = db.session.query(Transaction, Member, Book).join(Book).join(Member).all()
-
-    return jsonify([{'book': book.title, 'member': member.name, 'transaction_id': trans.id} for trans, member, book in transactions])
-
+# Confirm book return
 @app.route('/returnbookconfirm', methods=['POST'])
 def return_book_confirm():
     data = request.get_json()
-    id = data.get('id')
+    trans_id = data.get('id')
 
-    trans, member = db.session.query(Transaction, Member).join(Member).filter(Transaction.id == id).first()
+    trans = Transaction.query.get(trans_id)
     stock = Stock.query.filter_by(book_id=trans.book_id).first()
     charge = Charges.query.first()
 
     rent_days = (datetime.date.today() - trans.issue_date.date()).days
     rent_fee = rent_days * charge.rentfee
 
-    if stock:
-        stock.available_quantity += 1
-        stock.borrowed_quantity -= 1
+    stock.available_quantity += 1
+    trans.return_date = datetime.date.today()
+    trans.rent_fee = rent_fee
 
-        trans.return_date = datetime.date.today()
-        trans.rent_fee = rent_fee
+    db.session.commit()
+    return jsonify({'message': 'Book returned successfully!', 'rent_fee': rent_fee}), 200
+@app.route('/transactions', methods=['GET', 'POST'])
+def view_borrowings():
+    transactions = db.session.query(Transaction, Member, Book).join(Book).join(Member).order_by(desc(Transaction.return_date.is_(None))).all()
 
-        member_debt = calculate_dbt(member) + rent_fee
-        if member_debt >= 500:
-            return jsonify({'error': f'{member.name} has an outstanding debt of KES {member_debt}.'}), 400
+    if request.method == "POST":
+        data = request.get_json()
+        search = data.get('search', '')
 
-        db.session.commit()
-        return jsonify({'message': f'{member.name} returned the book successfully. Rent fee: KES {rent_fee}'}), 200
-    else:
-        return jsonify({'error': 'Error updating stock information'}), 500
-    
-    
+        if search:
+            transactions = db.session.query(Transaction, Member, Book).join(Book).join(Member).filter(
+                (Member.name.ilike(f'%{search}%')) | (Transaction.id == search)
+            ).order_by(desc(Transaction.return_date.is_(None))).all()
+        else:
+            transactions = db.session.query(Transaction, Member, Book).join(Book).join(Member).order_by(desc(Transaction.return_date.is_(None))).all()
 
-
+    return jsonify([{
+        'trans': {
+            'id': transaction.Transaction.id,
+            'issue_date': transaction.Transaction.issue_date,
+            'return_date': transaction.Transaction.return_date,
+            'rent_fee': transaction.Transaction.rent_fee
+        },
+        'book': {
+            'id': transaction.Book.id,
+            'title': transaction.Book.title
+        },
+        'member': {
+            'id': transaction.Member.id,
+            'name': transaction.Member.name
+        }
+    } for transaction in transactions])
 API_BASE_URL = "https://frappe.io/api/method/frappe-library"
-@app.route('/import_book', methods=['GET', 'POST'])
-def imp():
-    if request.method == 'POST':
-        title = request.form.get('title', default='', type=str)
-        num_books = request.form.get('num_books', default=20, type=int)
-        num_pages = (num_books + 19) // 20
-        all_books = []
-        for page in range(1, num_pages + 1):
-            url = f"{API_BASE_URL}?page={page}&title={title}"
-            response = requests.get(url)
-            data = response.json()
-            all_books.extend(data.get('message', []))  
-        return render_template('imp.html', data=all_books[:num_books], title=title, num_books=num_books)
 
 
-    return render_template('imp.html', data=[], title='', num_books=20)
+@app.route('/proxy_import_books', methods=['GET'])
+def proxy_import_books():
+    title = request.args.get('title')
+    limit = request.args.get('limit')
+    try:
+        response = requests.get(f'{API_BASE_URL}?title={title}&limit={limit}')
+        response.raise_for_status()  # Raise an error for bad responses
+        return jsonify(response.json())
+    except requests.exceptions.RequestException as e:
+        return jsonify({'error': str(e)}), 500  # Return a 500 error with the exception message
 @app.route('/save_all_books', methods=['POST'])
 def save_all_books():
-    data = request.get_json()
+    data = request.json
+
+    added_books = []
+    skipped_books = []
+    errors = []
 
     for book_data in data:
         book_id = book_data['id']
@@ -271,33 +418,43 @@ def save_all_books():
                 publisher=book_data['publisher'],
                 page=book_data['numPages']
             )
-            stock = book_data['stock']
+            st = book_data['stock']
 
             try:
                 db.session.add(book)
-                stock = Stock(book_id=book_id, total_quantity=stock, available_quantity=stock)
+                stock = Stock(book_id=book_id, total_quantity=st, available_quantity=st)
                 db.session.add(stock)
                 db.session.commit()
+                added_books.append(book_id)
             except IntegrityError as e:
-                db.session.rollback()
-                print(f"Error adding book with ID {book_id}: {str(e)}")
+                db.session.rollback()  
+                errors.append(f"Error adding book with ID {book_id}: {str(e)}")
         else:
-            print(f"Book with ID {book_id} already exists, skipping.")
+            skipped_books.append(book_id)
 
-    return jsonify({'message': 'Books added successfully!'}), 201
+    return jsonify({
+        "message": "Books processed successfully",
+        "added_books": added_books,
+        "skipped_books": skipped_books,
+        "errors": errors
+    })
 
-@app.route('/stockupdate/<int:id>', methods=['POST'])
+# Update stock quantity
+@app.route('/stockupdate/<int:id>', methods=['GET','POST'])
 def stock_update(id):
-    stock, book = db.session.query(Stock, Book).join(Book).filter(Stock.book_id == id).first()
+    stock = Stock.query.filter_by(book_id=id).first()
     data = request.get_json()
     qty = int(data.get('qty'))
 
     if qty > stock.total_quantity:
-        stock.available_quantity += qty
-        stock.total_quantity += qty
+        stock.available_quantity += (qty - stock.total_quantity)
+        stock.total_quantity = qty
     else:
-        stock.available_quantity -= qty
-        stock.total_quantity -= qty
+        stock.available_quantity -= (stock.total_quantity - qty)
+        stock.total_quantity = qty
 
     db.session.commit()
     return jsonify({'message': 'Stock updated successfully!'}), 200
+
+if __name__ == '__main__':
+    app.run(debug=True)
