@@ -163,7 +163,7 @@ def member_list():
     } for member in members])
 
 # Edit book details
-@app.route('/edit_book/<int:id>', methods=['GET','POST'])
+@app.route('/edit-book/<int:id>', methods=['GET','POST'])
 def edit_book(id):
     book = Book.query.get(id)
     stock = Stock.query.get(book.id)
@@ -453,46 +453,67 @@ API_BASE_URL = "https://frappe.io/api/method/frappe-library"
 def proxy_import_books():
     title = request.args.get('title')
     limit = request.args.get('limit')
+
     try:
+        # Fetch books from the external API
         response = requests.get(f'{API_BASE_URL}?title={title}&limit={limit}')
         response.raise_for_status()  # Raise an error for bad responses
-        return jsonify(response.json())
+        
+        # Extract the list of books
+        books = response.json().get('message', [])
+        
+        # Ensure each book has a 'numPages' field (default to 0 if missing)
+        updated_books = []
+        for book in books:
+            book['numPages'] = book.get('numPages', 0)  # Set default numPages to 0 if missing
+            book['isbn'] = book.get('isbn', 'N/A')  # Set default ISBN if missing
+            updated_books.append(book)
+
+        return jsonify({'message': updated_books})
+    
     except requests.exceptions.RequestException as e:
         return jsonify({'error': str(e)}), 500  # Return a 500 error with the exception message
+
 @app.route('/save_all_books', methods=['POST'])
 def save_all_books():
-    data = request.json
+    data = request.json  # Assuming you're sending a JSON array of books
 
     added_books = []
     skipped_books = []
     errors = []
 
     for book_data in data:
-        book_id = book_data['id']
-        existing_book = Book.query.get(book_id)
+        try:
+            book_id = book_data.get('id')
+            title = book_data.get('title')
+            authors = book_data.get('authors')
+            isbn = book_data.get('isbn', 'N/A')  # Default to 'N/A' if missing
+            publisher = book_data.get('publisher', 'Unknown')  # Default if missing
+            num_pages = book_data.get('num_pages', 0)  # Default to 0 if missing
 
-        if existing_book is None:
-            book = Book(
-                id=book_id,
-                title=book_data['title'],
-                author=book_data['authors'],
-                isbn=book_data['isbn'],
-                publisher=book_data['publisher'],
-                page=book_data['numPages']
-            )
-            st = book_data['stock']
+            # Check if all required fields are present
+            if not all([book_id, title, authors, isbn, publisher]):
+                errors.append(f"Missing fields for book with ID {book_id}")
+                continue
 
-            try:
-                db.session.add(book)
-                stock = Stock(book_id=book_id, total_quantity=st, available_quantity=st)
-                db.session.add(stock)
+            existing_book = Book.query.get(book_id)
+            if not existing_book:
+                new_book = Book(
+                    id=book_id,
+                    title=title,
+                    author=authors,
+                    isbn=isbn,
+                    publisher=publisher,
+                    page=num_pages
+                )
+                db.session.add(new_book)
                 db.session.commit()
                 added_books.append(book_id)
-            except IntegrityError as e:
-                db.session.rollback()  
-                errors.append(f"Error adding book with ID {book_id}: {str(e)}")
-        else:
-            skipped_books.append(book_id)
+            else:
+                skipped_books.append(book_id)
+        except Exception as e:
+            errors.append(f"Error processing book with ID {book_id}: {str(e)}")
+            db.session.rollback()
 
     return jsonify({
         "message": "Books processed successfully",

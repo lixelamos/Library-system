@@ -1,7 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import Dashboard from './components/Dashboard';
-import Books from './components/Books';
 import ViewMembers from './components/ViewMembers';
 import AddBook from './components/AddBook';
 import AddMember from './components/AddMember';
@@ -25,7 +24,6 @@ function App() {
         <div className="content p-4" style={{ flexGrow: 1 }}>
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/books" element={<Books />} />
             <Route path="/add-book" element={<AddBook />} />
             <Route path="/view-members" element={<ViewMembers />} />
             <Route path="/add-member" element={<AddMember />} />

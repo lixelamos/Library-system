@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
 
 const API_BASE_URL = 'http://localhost:5000/proxy_import_books'; // Your Flask proxy URL
+const SAVE_BOOKS_URL = 'http://localhost:5000/save_all_books'; // Your Flask save books endpoint
 
 function ImportBooks() {
   const [title, setTitle] = useState('');
@@ -24,8 +25,15 @@ function ImportBooks() {
         return response.json();
       })
       .then((data) => {
-        setBooks(data.message || []);
+        // Add an `id` if it's missing
+        const updatedBooks = data.message.map((book, index) => ({
+          ...book,
+          id: book.id || index + 1, // Use existing id or generate one based on index
+        }));
+
+        setBooks(updatedBooks);
         setLoading(false);
+
         if (!data.message || data.message.length === 0) {
           setMessage('No books found. Try a different search term.');
         }
@@ -34,6 +42,26 @@ function ImportBooks() {
         setLoading(false);
         setMessage('Error fetching books.');
         console.error('Error fetching books:', error);
+      });
+  };
+
+  // Save all books to the backend
+  const saveAllBooks = () => {
+    fetch(SAVE_BOOKS_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(books),
+    })
+      .then((response) => response.json())
+      .then((result) => {
+        setMessage('Books saved successfully!');
+        console.log(result);
+      })
+      .catch((error) => {
+        setMessage('Error saving books.');
+        console.error('Error:', error);
       });
   };
 
@@ -85,16 +113,19 @@ function ImportBooks() {
             <tbody>
               {books.map((book, index) => (
                 <tr key={index}>
-                  <td>{book.bookID}</td>
+                  <td>{book.id}</td> {/* Ensure each book has an id */}
                   <td>{book.title}</td>
                   <td>{book.authors}</td>
                   <td>{book.isbn}</td>
                   <td>{book.publisher}</td>
-                  <td>{book.num_pages}</td>
+                  <td>{book.numPages}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          <button className="btn btn-success mt-3" onClick={saveAllBooks}>
+            Save All Books
+          </button>
         </div>
       )}
     </div>

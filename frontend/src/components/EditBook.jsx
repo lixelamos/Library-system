@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Form, Button, Card } from 'react-bootstrap';
-
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';  // Import react-toastify CSS
 
 function EditBook() {
   const { id } = useParams();
@@ -33,7 +34,7 @@ function EditBook() {
           });
         }
       })
-      .catch((error) => console.error('Error fetching book details:', error));
+     
   }, [id]);
 
   const handleChange = (e) => {
@@ -56,20 +57,21 @@ function EditBook() {
       .then((response) => response.json())
       .then((data) => {
         if (data.success) {
-          setMessage('Book updated successfully!');
+          toast.success('Book updated successfully!');  // Success toast
           navigate('/view-books');
         } else {
-          setMessage('Failed to update book.');
+          toast.error('Failed to update book.');  // Error toast
         }
       })
       .catch((error) => {
         console.error('Error updating book:', error);
-        setMessage('Error updating book.');
+        toast.error('Error updating book.');  // Error toast
       });
   };
 
   return (
     <Container className="mt-5">
+      <ToastContainer />  {/* Toast container to display notifications */}
       <Card className="p-4">
         <h1 className="mb-4">Edit Book</h1>
 
@@ -140,12 +142,10 @@ function EditBook() {
             />
           </Form.Group>
 
-          <Button variant="primary" type="submit" onClick={() => window.confirm('Are you sure?')}>
+          <Button variant="primary" type="submit">
             Confirm
           </Button>
         </Form>
-
-        {message && <div className="mt-3 alert alert-info">{message}</div>}
       </Card>
     </Container>
   );
