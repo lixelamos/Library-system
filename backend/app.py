@@ -326,9 +326,15 @@ def issue_book_confirm():
     db.session.commit()
 
     return jsonify({'message': 'Book issued successfully!'}), 201
-
+@app.route('/check_rent_fee')
+def check_rent_fee():
+    charge = db.session.query(Charges).first()
+    if charge:
+        return f"Rent fee per day: {charge.rentfee}"
+    else:
+        return "Rent fee not defined."
 # Return a book
-@app.route('/returnbook/<int:id>', methods=['GET'])
+@app.route('/returnbook/<int:id>', methods=['GET','POST'])
 def return_book(id):
     # Fetch transaction
     transaction = Transaction.query.get(id)
@@ -341,7 +347,7 @@ def return_book(id):
     member = Member.query.get(transaction.member_id)
 
     rent_days = (datetime.date.today() - transaction.issue_date.date()).days
-    rent_fee = rent_days * 10  # Rent fee per day
+    rent_fee = rent_days * 50  # Rent fee per day
 
     # Return all necessary data to the frontend
     return jsonify({
@@ -370,64 +376,46 @@ def return_book(id):
     }), 200
 
 # Confirm book return
-@app.route('/returnbookconfirm', methods=['POST'])
+@app.route('/return_book_confirm', methods=['POST'])
 def return_book_confirm():
-    print("POST request received at /returnbookconfirm")
     data = request.get_json()
-    trans_id = data.get('id')
+    id = data.get('id')  # Ensure that you are getting the ID from the request
 
-    # Fetch the transaction record by its ID
-    trans = Transaction.query.get(trans_id)
-    if not trans:
-        return jsonify({'message': 'Transaction not found!'}), 404
+    if not id:
+        return jsonify({'message': 'ID is missing in the request'}), 400
 
-    # Fetch the stock information for the book being returned
+    # Fetch transaction and member details
+    result = db.session.query(Transaction, Member).join(Member).filter(Transaction.id == id).first()
+
+    # Check if the query result is None before unpacking
+    if result is None:
+        return jsonify({'message': 'Transaction or Member not found!'}), 404
+
+    trans, member = result  # Now we can safely unpack the query result
+
+    # Fetch stock details
     stock = Stock.query.filter_by(book_id=trans.book_id).first()
     if not stock:
         return jsonify({'message': 'Book stock not found!'}), 404
 
-    # Fetch the charges information (e.g., rent fee per day)
+    # Fetch charge details and calculate rent
     charge = Charges.query.first()
     if not charge:
-        return jsonify({'message': 'Charges information not found!'}), 404
+        return jsonify({'message': 'Charges not found!'}), 404
 
-    # Calculate the rent fee based on the number of days the book was borrowed
-    rent_days = (datetime.date.today() - trans.issue_date.date()).days
-    rent_fee = rent_days * charge.rentfee
+    rent = (datetime.date.today() - trans.issue_date.date()).days * charge.rentfee
 
-    # Fetch the member who borrowed the book
-    member = Member.query.get(trans.member_id)
-    if not member:
-        return jsonify({'message': 'Member not found!'}), 404
+    # Update stock and transaction details
+    stock.available_quantity += 1
+    stock.borrowed_quantity -= 1
+    trans.return_date = datetime.date.today()
+    trans.rent_fee = rent
 
-    # Calculate the member's total outstanding debt, including this transaction
-    current_debt = db.session.query(db.func.sum(Transaction.rent_fee)).filter(
-        Transaction.member_id == member.id,
-        Transaction.return_date == None  # Only consider unreturned books
-    ).scalar() or 0  # Use 0 if no debt found
+    # Commit changes to the database
+    db.session.commit()
 
-    new_total_debt = current_debt + rent_fee
+    return jsonify({'message': f"{member.name} returned the book successfully!", 'rent': rent}), 200
 
-    # Check if the member's debt exceeds KES 500
-    if new_total_debt > 500:
-        return jsonify({
-            'message': f'Return denied! Member\'s total debt would exceed 500 KES. Current debt is {current_debt} KES.',
-            'current_debt': current_debt,
-            'new_total_debt': new_total_debt
-        }), 400
-
-    # Update the stock and transaction details if debt is within the limit
-    stock.available_quantity += 1  # Increase the available quantity in stock
-    trans.return_date = datetime.date.today()  # Mark the book as returned
-    trans.rent_fee = rent_fee  # Update the transaction with the rent fee
-
-    db.session.commit()  # Commit the changes to the database
-
-    return jsonify({
-        'message': 'Book returned successfully!',
-        'rent_fee': rent_fee,
-        'total_debt': new_total_debt
-    }), 200
 @app.route('/transactions', methods=['GET', 'POST'])
 def view_borrowings():
     transactions = db.session.query(Transaction, Member, Book).join(Book).join(Member).order_by(desc(Transaction.return_date.is_(None))).all()

@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Card, Button } from 'react-bootstrap'; // Import Bootstrap components
 import axios from 'axios'; // Axios for API requests
-import { useParams } from 'react-router-dom'; // Get URL parameters
-import 'bootstrap/dist/css/bootstrap.min.css';
+import { useParams, useNavigate } from 'react-router-dom'; // Get URL parameters and navigate
+import { ToastContainer, toast } from 'react-toastify'; // Toast notifications
+import 'react-toastify/dist/ReactToastify.css'; // Toastify styles
+import 'bootstrap/dist/css/bootstrap.min.css'; // Bootstrap styles
 
 const ReturnBook = () => {
   const { transactionId } = useParams(); // Extract transactionId from URL parameters
+  const navigate = useNavigate(); // Hook for navigation
   const [transaction, setTransaction] = useState(null); // Holds transaction data
   const [rent, setRent] = useState(0); // Holds rent fee
   const [loading, setLoading] = useState(true); // Loading state
@@ -33,15 +36,27 @@ const ReturnBook = () => {
   // Handle form submission for book return confirmation
   const handleReturnConfirm = () => {
     const isConfirmed = window.confirm('Are you sure you want to confirm this return?');
+    
     if (isConfirmed && transaction) {
-      axios.post('http://127.0.0.1:5000/returnbookconfirm', { id: transaction.trans.id })
-        .then((response) => {
-          alert('Book returned successfully!');
-        })
-        .catch((error) => {
-          alert('Failed to confirm the book return.');
-          console.error('Error confirming book return:', error);
-        });
+      console.log("Transaction ID:", transaction.id); // Check if transaction ID is correctly captured
+  
+      axios.post('http://127.0.0.1:5000/return_book_confirm', { id: transaction.trans.id }, {
+        headers: {
+          'Content-Type': 'application/json' // Ensure correct Content-Type is set
+        }
+      })
+      .then((response) => {
+        toast.success(response.data.message); 
+        console.log(response.data);
+
+        setTimeout(() => {
+          navigate('/transactions'); 
+        }, 2000);
+      })
+      .catch((error) => {
+        console.error('Error confirming book return:', error);
+        toast.error('Failed to confirm the book return.Amount exceed 500'); 
+      });
     }
   };
 
@@ -77,6 +92,7 @@ const ReturnBook = () => {
 
   return (
     <Container className="mt-5">
+      <ToastContainer /> {/* Toastify container for notifications */}
       <h1 className="mb-4">Return Book</h1>
 
       {/* Transaction Details */}
