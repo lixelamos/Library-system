@@ -212,17 +212,25 @@ def delete_member(id):
         return jsonify({'error': str(e)}), 500
 
 # Delete book
-@app.route('/delete-book/<int:id>', methods=['GET','POST'])
+@app.route('/delete-book/<int:id>', methods=['DELETE'])
 def delete_book(id):
+    print(f"Delete request for book ID: {id}")  # Add this to confirm the route is accessed
     try:
         book = Book.query.get(id)
-        stock = Stock.query.get(book.id)
+        if not book:
+            return jsonify({'error': 'Book not found'}), 404
+        
+        stock = Stock.query.filter_by(book_id=book.id).first()
         db.session.delete(book)
-        db.session.delete(stock)
+        if stock:
+            db.session.delete(stock)
         db.session.commit()
+
         return jsonify({'message': 'Book deleted successfully!'}), 200
     except Exception as e:
+        print(f"Error deleting book: {e}")  # Log the error in Flask
         return jsonify({'error': str(e)}), 500
+
 
 # View a member and their transactions
 @app.route('/view_member/<int:id>', methods=['GET'])

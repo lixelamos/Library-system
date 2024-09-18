@@ -48,12 +48,30 @@ function ImportBooks() {
   };
 
   // Function to delete a book
-  const deleteBook = (id) => {
-    // Filter out the book with the matching id
-    const updatedBooks = books.filter(book => book.id !== id);
-    setBooks(updatedBooks); // Update the state
+  const handleDelete = async (id) => {
+    try {
+      const response = await fetch(`http://127.0.0.1:5000/delete-book/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+  
+      if (response.ok) {
+        const result = await response.json();
+        console.log(result.message);
+  
+        // Remove the deleted book from the state
+        setBooks(books.filter(book => book.id !== id));
+      } else {
+        const errorData = await response.json();
+        console.error('Error deleting book:', errorData.error);
+      }
+    } catch (error) {
+      console.error('Error deleting book:', error);
+    }
   };
-
+  
   // Function to handle stock change
   const handleStockChange = (e, index) => {
     const updatedBooks = [...books];
@@ -148,12 +166,13 @@ function ImportBooks() {
                     />
                   </td>
                   <td>
-                    <button
-                      className="btn btn-danger"
-                      onClick={() => deleteBook(book.id)}
-                    >
-                      Delete
-                    </button>
+                  <button
+                  className="btn btn-danger"
+                  onClick={() => handleDelete(book.id)}
+                >
+                  Delete
+                </button>
+
                   </td>
                 </tr>
               ))}

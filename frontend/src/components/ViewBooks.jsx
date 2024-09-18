@@ -36,22 +36,28 @@ function ViewBooks() {
     if (window.confirm('Are you sure you want to delete this book?')) {
       try {
         const response = await fetch(`http://127.0.0.1:5000/delete-book/${id}`, {
-          method: 'POST',
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
         });
-        const result = await response.json();
-        console.log(result); // Log the response for debugging
-        if (result.message) {
-          alert('Book deleted successfully');
-          fetchBooks(); // Refresh the book list after deletion
+  
+        if (response.ok) {
+          const result = await response.json();
+          console.log(result.message);
+  
+          // Remove the deleted book from the state
+          setBooks(books.filter(book => book.id !== id));
         } else {
-          alert('Failed to delete the book');
+          const errorText = await response.text();
+          console.error('Error deleting book:', errorText);
         }
       } catch (error) {
         console.error('Error deleting book:', error);
       }
     }
   };
-
+  
   return (
     <div className="container mt-5">
       <h1 className="text-center mb-4">Book List</h1>
