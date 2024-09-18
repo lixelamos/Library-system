@@ -328,32 +328,46 @@ def issue_book_confirm():
     return jsonify({'message': 'Book issued successfully!'}), 201
 
 # Return a book
-from flask import jsonify
-from models import Transaction, Stock, Member, Book
-@app.route('/returnbook/<int:id>', methods=['GET','POST'])
+@app.route('/returnbook/<int:id>', methods=['GET'])
 def return_book(id):
-    transaction = Transaction.query.filter_by(id=id).first()
-
-    if not transaction:
-        return jsonify({"error": "Transaction not found"}), 404
-
-    book = Book.query.filter_by(id=transaction.book_id).first()
-    member = Member.query.filter_by(id=transaction.member_id).first()
-
-    if not book or not member:
-        return jsonify({"error": "Book or Member not found"}), 404
-
-    rent = calculate_rent(transaction)
+    # Fetch transaction
+    transaction = Transaction.query.get(id)
     
-    return jsonify({
-        "trans": {
-            "Transaction": transaction.to_dict(),
-            "Book": book.to_dict(),
-            "Member": member.to_dict()
-        },
-        "rent": rent
-    }), 200
+    if not transaction:
+        return jsonify({'error': 'Transaction not found'}), 404
 
+    # Assuming Transaction has relationships to Book and Member
+    book = Book.query.get(transaction.book_id)
+    member = Member.query.get(transaction.member_id)
+
+    rent_days = (datetime.date.today() - transaction.issue_date.date()).days
+    rent_fee = rent_days * 10  # Rent fee per day
+
+    # Return all necessary data to the frontend
+    return jsonify({
+        'trans': {
+            'id': transaction.id,
+            'issue_date': transaction.issue_date,
+            'return_date': transaction.return_date,
+            'rent_fee': transaction.rent_fee
+        },
+        'book': {
+            'id': book.id,
+            'title': book.title,
+            'author': book.author,
+            'isbn': book.isbn,
+            'publisher': book.publisher,
+            'page': book.page
+        },
+        'member': {
+            'id': member.id,
+            'name': member.name,
+            'email': member.email,
+            'phone': member.phone,
+            'address': member.address
+        },
+        'rent': rent_fee
+    }), 200
 
 # Confirm book return
 @app.route('/returnbookconfirm', methods=['POST'])

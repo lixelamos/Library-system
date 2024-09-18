@@ -35,22 +35,16 @@ function App() {
             <Route path="/view-member" element={<ViewMember />} />
             <Route path="/import-books" element={<ImportBooks />} />
             <Route path="/view-books" element={<ViewBooks />} />
-            <Route path="/returnbook/:transactionId" element={<ReturnBook />} />            <Route path="/stock-update" element={<StockUpdate />} />
+            <Route path="/returnbook/:transactionId" element={<ReturnBook />} />           
+            <Route path="/stock-update" element={<StockUpdate />} />
             <Route path="/edit-book/:id" element={<EditBook />} />
             <Route path="/view-book/:id" element={<ViewBook />} />
             <Route path="/edit-member/:id" element={<EditMember />} />
             <Route path="/view_member/:id" element={<ViewMember />} />
             <Route path="/returnbook" element={<ReturnBook />} />
 
-            
 
-
-            
-
-
-
-            
-
+        
 
           </Routes>
         </div>

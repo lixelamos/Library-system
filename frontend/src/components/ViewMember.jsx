@@ -1,92 +1,106 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Container, Card, Table, Button } from 'react-bootstrap';
 import { useParams } from 'react-router-dom';
+import axios from 'axios';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
-function ViewMember() {
-  const { memberId } = useParams();  // Get memberId from URL parameters
-  const [member, setMember] = useState(null);
-  const [transactions, setTransactions] = useState([]);
-  const [debt, setDebt] = useState(0);
-  const [loading, setLoading] = useState(true);
+const ViewMember = () => {
+  const { id } = useParams(); // Get the member ID from the URL
+  const [member, setMember] = useState(null); // Holds member details
+  const [transactions, setTransactions] = useState([]); // Holds member transactions
+  const [debt, setDebt] = useState(0); // Holds the outstanding debt
+  const [loading, setLoading] = useState(true); // Loading state
+  const [error, setError] = useState(null); // Error state
 
+  // Fetch the member details and transactions from the API when the component mounts
   useEffect(() => {
-    // Fetch member and transactions data based on the provided memberId
-    fetch(`http://127.0.0.1:5000/member/${memberId}`)
-      .then(response => response.json())
-      .then(data => {
-        setMember(data.member);  // Set the member data
-        setTransactions(data.transactions);  // Set the transactions data
-        setDebt(data.debt);  // Set the member debt
-        setLoading(false);  // Loading finished
-      })
-      .catch(error => {
-        console.error("Error fetching member details:", error);
+    const fetchMemberDetails = async () => {
+      try {
+        const response = await axios.get(`http://127.0.0.1:5000/view_member/${id}`);
+        const { member, transactions, debt } = response.data;
+        
+        setMember(member);
+        setTransactions(transactions);
+        setDebt(debt);
         setLoading(false);
-      });
-  }, [memberId]);
+      } catch (error) {
+        console.error('Error fetching member details:', error);
+        setError('Failed to fetch member details.');
+        setLoading(false);
+        toast.error('Failed to fetch member details.');
+      }
+    };
+
+    fetchMemberDetails();
+  }, [id]);
 
   if (loading) {
-    return <p>Loading...</p>;
+    return <Container className="mt-5"><h2>Loading...</h2></Container>;
+  }
+
+  if (error) {
+    return <Container className="mt-5"><h2>{error}</h2></Container>;
   }
 
   return (
-    <div className="container mt-5">
-      <h1 className="text-3xl font-semibold mb-4">Member Details</h1>
+    <Container className="mt-5">
+      <ToastContainer />
+      <h1 className="mb-4">Member Details</h1>
 
       {/* Member Details */}
-      {member ? (
-        <div className="bg-white p-6 rounded shadow">
-          <h2 className="text-xl font-semibold mb-2">{member.id}: {member.name}</h2>
-          <p className="text-gray-600">{member.address}</p>
-          <p className="text-gray-600">{member.phone}</p>
-          <p className="text-gray-600">{member.email}</p>
-          <p className="text-gray-600">Outstanding Debt: {debt}</p>
-        </div>
-      ) : (
-        <p>No member details found.</p>
-      )}
+      <Card className="mb-4 shadow">
+        <Card.Body>
+          <Card.Title>{member.name}</Card.Title>
+          <Card.Text>Address: {member.address}</Card.Text>
+          <Card.Text>Phone: {member.phone}</Card.Text>
+          <Card.Text>Email: {member.email}</Card.Text>
+          <Card.Text>Outstanding Debt: {debt} KES</Card.Text>
+        </Card.Body>
+      </Card>
 
       {/* Transactions */}
-      <div className="bg-white mt-4 p-6 rounded shadow">
-        <h2 className="text-xl font-semibold mb-2">Transactions</h2>
-        {transactions.length > 0 ? (
-          <table className="table table-bordered bg-white">
-            <thead>
-              <tr>
-                <th>Id</th>
-                <th>Issue Date</th>
-                <th>Return Date</th>
-                <th>Rent Fee</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.map(trans => (
-                <tr key={trans.id}>
-                  <td>
-                    <a className="text-green-500" href={`/returnbook/${trans.id}`}>
-                      {trans.id}
-                    </a>
-                  </td>
-                  <td>{new Date(trans.issue_date).toLocaleDateString()}</td>
-                  <td>
-                    {trans.return_date ? new Date(trans.return_date).toLocaleDateString() : 'Not returned yet'}
-                  </td>
-                  <td>{trans.rent_fee}</td>
-                  <td>
-                    <a className="btn btn-success" href={`/returnbook/${trans.id}`}>
-                      Manage
-                    </a>
-                  </td>
+      <Card className="shadow">
+        <Card.Body>
+          <Card.Title>Transactions</Card.Title>
+          {transactions.length > 0 ? (
+            <Table striped bordered hover>
+              <thead>
+                <tr>
+                  <th>Id</th>
+                  <th>Issue Date</th>
+                  <th>Return Date</th>
+                  <th>Rent Fee</th>
+                  <th>Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p>No transactions found for this member.</p>
-        )}
-      </div>
-    </div>
+              </thead>
+              <tbody>
+                {transactions.map((trans) => (
+                  <tr key={trans.id}>
+                    <td>
+                      <a href={`/returnbook/${trans.id}`} className="text-success">
+                        {trans.id}
+                      </a>
+                    </td>
+                    <td>{new Date(trans.issue_date).toLocaleDateString()}</td>
+                    <td>{trans.return_date ? new Date(trans.return_date).toLocaleDateString() : 'Not returned yet'}</td>
+                    <td>{trans.rent_fee}</td>
+                    <td>
+                      <Button variant="success" href={`/returnbook/${trans.id}`}>
+                        Manage
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          ) : (
+            <p className="text-muted">No transactions found for this member.</p>
+          )}
+        </Card.Body>
+      </Card>
+    </Container>
   );
-}
+};
 
 export default ViewMember;

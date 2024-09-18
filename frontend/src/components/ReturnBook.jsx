@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Card, Button } from 'react-bootstrap';
-import axios from 'axios';
-import { useParams } from 'react-router-dom';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { Container, Card, Button } from 'react-bootstrap'; // Import Bootstrap components
+import axios from 'axios'; // Axios for API requests
+import { useParams } from 'react-router-dom'; // Get URL parameters
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 const ReturnBook = () => {
-  const { transactionId } = useParams(); // Get transaction ID from the URL
+  const { transactionId } = useParams(); // Extract transactionId from URL parameters
   const [transaction, setTransaction] = useState(null); // Holds transaction data
-  const [book, setBook] = useState(null); // Holds book details
-  const [member, setMember] = useState(null); // Holds member details
   const [rent, setRent] = useState(0); // Holds rent fee
   const [loading, setLoading] = useState(true); // Loading state
   const [error, setError] = useState(null); // Error state
@@ -18,39 +15,33 @@ const ReturnBook = () => {
   useEffect(() => {
     const fetchTransactionDetails = async () => {
       try {
-        console.log("Fetching transaction details for ID:", transactionId);
         const response = await axios.get(`http://127.0.0.1:5000/returnbook/${transactionId}`);
-        
-        console.log("API Response:", response.data);
-        setTransaction(response.data.trans); // Set transaction data from the API response
-        setBook(response.data.book); // Set book details
-        setMember(response.data.member); // Set member details
+        console.log("API Response:", response.data); // Log the API response
+        setTransaction(response.data);  // Set transaction, book, and member data
         setRent(response.data.rent); // Set rent fee
         setLoading(false); // Stop loading
       } catch (error) {
-        console.error('Error fetching transaction details:', error);
+        console.error("Error fetching transaction details:", error);
         setError('Failed to fetch transaction details.');
-        toast.error('Failed to fetch transaction details!'); // Show error toast
-        setLoading(false); // Stop loading in case of error
+        setLoading(false); // Stop loading on error
       }
     };
 
     fetchTransactionDetails();
   }, [transactionId]);
 
-  // Handle the form submission for book return confirmation
+  // Handle form submission for book return confirmation
   const handleReturnConfirm = () => {
     const isConfirmed = window.confirm('Are you sure you want to confirm this return?');
     if (isConfirmed && transaction) {
-        axios.post('http://127.0.0.1:5000/returnbookconfirm', { id: transaction.id })
-  .then(() => {
-    console.log('Book returned successfully!');
-  })
-  .catch((error) => {
-    console.log('Axios Error:', error); // This will show detailed error info
-  });
-
-      
+      axios.post('http://127.0.0.1:5000/returnbookconfirm', { id: transaction.trans.id })
+        .then((response) => {
+          alert('Book returned successfully!');
+        })
+        .catch((error) => {
+          alert('Failed to confirm the book return.');
+          console.error('Error confirming book return:', error);
+        });
     }
   };
 
@@ -72,8 +63,8 @@ const ReturnBook = () => {
     );
   }
 
-  // Check if transaction, book, and member data are available
-  if (!transaction || !book || !member) {
+  // Check if transaction data is available
+  if (!transaction) {
     return (
       <Container className="mt-5">
         <h2>No transaction data available.</h2>
@@ -81,18 +72,22 @@ const ReturnBook = () => {
     );
   }
 
-  // Render the transaction details, book details, and member details
+  // Destructure the transaction data for easier access
+  const { trans, book, member } = transaction;
+
   return (
     <Container className="mt-5">
-      <ToastContainer /> {/* Add the ToastContainer */}
       <h1 className="mb-4">Return Book</h1>
 
       {/* Transaction Details */}
       <Card className="mt-4 shadow">
         <Card.Body>
           <Card.Title>Transaction Details</Card.Title>
-          <Card.Text>Book Borrow Date: {new Date(transaction.issue_date).toLocaleDateString()}</Card.Text>
-          <Card.Text>Book Returned Date: {transaction.return_date ? new Date(transaction.return_date).toLocaleDateString() : 'Not returned yet'}</Card.Text>
+          <Card.Text>Book Borrow Date: {new Date(trans.issue_date).toLocaleDateString()}</Card.Text>
+          <Card.Text>
+            Book Returned Date:{' '}
+            {trans.return_date ? new Date(trans.return_date).toLocaleDateString() : 'Not returned yet'}
+          </Card.Text>
           <Card.Text>Rent Fee: {rent} KES</Card.Text>
         </Card.Body>
       </Card>
@@ -119,7 +114,7 @@ const ReturnBook = () => {
       </Card>
 
       {/* Confirm Return Button */}
-      {!transaction.return_date && (
+      {!trans.return_date && (
         <div className="text-center">
           <Button variant="success" onClick={handleReturnConfirm}>
             Confirm Return
