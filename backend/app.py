@@ -184,22 +184,21 @@ def edit_book(id):
         return jsonify({'error': str(e)}), 500
 
 # Edit member details
-@app.route('/edit_member/<int:id>', methods=['GET','POST'])
+@app.route('/edit-member/<int:id>', methods=['GET','PUT'])
 def edit_member(id):
     member = Member.query.get(id)
+    if not member:
+        return jsonify({'message': 'Member not found'}), 404
+
     data = request.get_json()
+    member.name = data.get('name')
+    member.email = data.get('email')
+    member.phone = data.get('phone')
+    member.address = data.get('address')
 
-    try:
-        member.name = data.get('name')
-        member.phone = data.get('phone')
-        member.email = data.get('email')
-        member.address = data.get('address')
-        db.session.commit()
+    db.session.commit()
+    return jsonify({'message': 'Member updated successfully!'}), 200
 
-        return jsonify({'message': 'Member updated successfully!'}), 200
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
 
 # Delete member
 @app.route('/delete_member/<int:id>', methods=['GET','POST'])

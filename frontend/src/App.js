@@ -39,7 +39,7 @@ function App() {
             <Route path="/stock-update" element={<StockUpdate />} />
             <Route path="/edit-book/:id" element={<EditBook />} />
             <Route path="/view-book/:id" element={<ViewBook />} />
-            <Route path="/edit-member/:id" element={<EditMember />} />
+            <Route path="/edit-member/:memberId" element={<EditMember/>} />
             <Route path="/view_member/:id" element={<ViewMember />} />
             <Route path="/returnbook" element={<ReturnBook />} />
 

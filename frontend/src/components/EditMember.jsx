@@ -1,8 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import 'bootstrap/dist/css/bootstrap.min.css';
+import React, { useState, useEffect } from 'react';  
+import { useParams } from 'react-router-dom';
+import axios from 'axios';  
+import 'bootstrap/dist/css/bootstrap.min.css';  
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';  // Import toastify CSS
 
-const EditMember = ({ memberId, onUpdateSuccess }) => {
+const EditMember = ({ onUpdateSuccess }) => {
+    const { memberId } = useParams(); 
     const [member, setMember] = useState({
         name: '',
         email: '',
@@ -11,37 +15,46 @@ const EditMember = ({ memberId, onUpdateSuccess }) => {
     });
 
     useEffect(() => {
-        // Fetch member data based on the ID
         const fetchMember = async () => {
             try {
-                const response = await axios.get(`127.0.0.1:5000/members/${memberId}`); // Adjust the API endpoint as necessary
-                setMember(response.data); // Set member data to state
+                const response = await axios.get(`http://127.0.0.1:5000/members/${memberId}`);
+                setMember(response.data);
             } catch (error) {
                 console.error('Error fetching member data:', error);
+                toast.error('Error fetching member data');  // Show error toast if fetching fails
             }
         };
-        fetchMember();
+        if (memberId) {
+            fetchMember(); // Only fetch if memberId exists
+        }
     }, [memberId]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setMember({ ...member, [name]: value }); // Update member state
+        setMember({ ...member, [name]: value });
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault(); // Prevent the default form submission
+        e.preventDefault();
+    
         try {
-            await axios.post(`127.0.0.1:5000/edit-member/${memberId}`, member); // Update the member
+            const response = await axios.put(`http://127.0.0.1:5000/edit-member/${memberId}`, member, {
+                headers: { 'Content-Type': 'application/json' },
+            });
+            toast.success('Member updated successfully');  // Show success toast
             if (onUpdateSuccess) {
-                onUpdateSuccess(); // Call the callback to notify of success
+                onUpdateSuccess();
             }
         } catch (error) {
+            toast.error('Error updating member. Please try again.');  // Show error toast
             console.error('Error updating member:', error);
         }
     };
+    
 
     return (
         <div className="d-flex justify-content-center align-items-center bg-light" style={{ height: '100vh' }}>
+            <ToastContainer />  {/* Toast container to display the notifications */}
             <div className="bg-white p-4 rounded shadow" style={{ width: '80%' }}>
                 <h1 className="text-2xl mb-4">EDIT MEMBER</h1>
                 <form onSubmit={handleSubmit}>
