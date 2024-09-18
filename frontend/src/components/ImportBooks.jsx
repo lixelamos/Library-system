@@ -29,8 +29,10 @@ function ImportBooks() {
         const updatedBooks = data.message.map((book, index) => ({
           ...book,
           id: book.id || index + 1, // Use existing id or generate one based on index
+          numPages: book.num_pages || 0,  // Ensure field matches backend's 'num_pages'
+          stock: 0  // Initialize stock with a default value of 0
         }));
-
+    
         setBooks(updatedBooks);
         setLoading(false);
 
@@ -45,8 +47,22 @@ function ImportBooks() {
       });
   };
 
+  // Function to delete a book
+  const deleteBook = (id) => {
+    // Filter out the book with the matching id
+    const updatedBooks = books.filter(book => book.id !== id);
+    setBooks(updatedBooks); // Update the state
+  };
+
+  // Function to handle stock change
+  const handleStockChange = (e, index) => {
+    const updatedBooks = [...books];
+    updatedBooks[index].stock = parseInt(e.target.value, 10);
+    setBooks(updatedBooks);
+  };
+
   // Save all books to the backend
-  const saveAllBooks = () => {
+  function saveAllBooks() {
     fetch(SAVE_BOOKS_URL, {
       method: 'POST',
       headers: {
@@ -63,7 +79,7 @@ function ImportBooks() {
         setMessage('Error saving books.');
         console.error('Error:', error);
       });
-  };
+  }
 
   return (
     <div className="container mt-5">
@@ -108,6 +124,8 @@ function ImportBooks() {
                 <th>ISBN</th>
                 <th>Publisher</th>
                 <th>Num Pages</th>
+                <th>Stock</th> {/* Added Stock Column */}
+                <th>Actions</th> {/* Added Actions Column */}
               </tr>
             </thead>
             <tbody>
@@ -119,6 +137,24 @@ function ImportBooks() {
                   <td>{book.isbn}</td>
                   <td>{book.publisher}</td>
                   <td>{book.numPages}</td>
+                  <td>
+                    {/* Add an input field for stock */}
+                    <input
+                      type="number"
+                      name="stock"
+                      value={book.stock || 0}
+                      min="0"
+                      onChange={(e) => handleStockChange(e, index)}
+                    />
+                  </td>
+                  <td>
+                    <button
+                      className="btn btn-danger"
+                      onClick={() => deleteBook(book.id)}
+                    >
+                      Delete
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

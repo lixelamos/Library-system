@@ -212,7 +212,7 @@ def delete_member(id):
         return jsonify({'error': str(e)}), 500
 
 # Delete book
-@app.route('/delete_book/<int:id>', methods=['GET','POST'])
+@app.route('/delete-book/<int:id>', methods=['GET','POST'])
 def delete_book(id):
     try:
         book = Book.query.get(id)
@@ -476,25 +476,20 @@ def proxy_import_books():
 
 @app.route('/save_all_books', methods=['POST'])
 def save_all_books():
-    data = request.json  # Assuming you're sending a JSON array of books
-
+    data = request.json  # Get the JSON data sent from the frontend
     added_books = []
-    skipped_books = []
     errors = []
 
     for book_data in data:
         try:
+            # Use .get() to handle any missing values
             book_id = book_data.get('id')
             title = book_data.get('title')
             authors = book_data.get('authors')
             isbn = book_data.get('isbn', 'N/A')  # Default to 'N/A' if missing
-            publisher = book_data.get('publisher', 'Unknown')  # Default if missing
-            num_pages = book_data.get('num_pages', 0)  # Default to 0 if missing
-
-            # Check if all required fields are present
-            if not all([book_id, title, authors, isbn, publisher]):
-                errors.append(f"Missing fields for book with ID {book_id}")
-                continue
+            publisher = book_data.get('publisher', 'Unknown')  # Default to 'Unknown' if missing
+            num_pages = book_data.get('numPages', 0)  # Default to 0 if missing
+            stock_value = book_data.get('stock', 0)  # Default to 0 if missing
 
             existing_book = Book.query.get(book_id)
             if not existing_book:
@@ -507,20 +502,21 @@ def save_all_books():
                     page=num_pages
                 )
                 db.session.add(new_book)
+                new_stock = Stock(
+                    book_id=new_book.id,
+                    total_quantity=stock_value,
+                    available_quantity=stock_value  # Set available stock equal to total
+                )
+                db.session.add(new_stock)
                 db.session.commit()
                 added_books.append(book_id)
             else:
-                skipped_books.append(book_id)
+                print(f"Book with ID {book_id} already exists. Skipping.")
         except Exception as e:
-            errors.append(f"Error processing book with ID {book_id}: {str(e)}")
             db.session.rollback()
+            errors.append(f"Error saving book with ID {book_id}: {str(e)}")
 
-    return jsonify({
-        "message": "Books processed successfully",
-        "added_books": added_books,
-        "skipped_books": skipped_books,
-        "errors": errors
-    })
+    return jsonify({"message": "Books processed", "added_books": added_books, "errors": errors})
 
 # Update stock quantity
 @app.route('/stockupdate/<int:id>', methods=['GET','POST'])
