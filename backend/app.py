@@ -201,7 +201,7 @@ def edit_member(id):
 
 
 # Delete member
-@app.route('/delete_member/<int:id>', methods=['GET','POST'])
+@app.route('/delete-member/<int:id>', methods=['DELETE'])
 def delete_member(id):
     try:
         member = Member.query.get(id)
