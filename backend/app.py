@@ -137,6 +137,9 @@ def view_book(id):
             {
                 'id': trans.id,
                 'issue_date': trans.issue_date,
+                'return_date': trans.return_date,
+                'rent_fee': trans.rent_fee,  # Make sure rent_fee is included
+                'member_id': trans.member_id  # Make sure member_id is included
             } for trans in transactions
         ]
     }), 200
