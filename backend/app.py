@@ -324,12 +324,32 @@ def issue_book_confirm():
     memberid = data.get('memberid')
     bookid = data.get('bookid')
 
-    stock = db.session.query(Stock).filter_by(book_id=bookid).first()
-    if stock.available_quantity <= 0:
-        return jsonify({'error': 'Book not available'}), 400
+    # Fetch the member from the database
+    member = db.session.query(Member).filter_by(id=memberid).first()
+    if not member:
+        return jsonify({'error': 'Member not found'}), 404
 
-    new_transaction = Transaction(book_id=bookid, member_id=memberid, issue_date=datetime.date.today())
+    # Calculate the member's debt
+    transactions = db.session.query(Transaction).filter_by(member_id=memberid, return_date=None).all()
+    debt = sum(t.rent_fee for t in transactions if t.rent_fee)
+
+    # Ensure stock and debt checks only after successfully fetching member and transactions
+    if debt > 500:
+        return jsonify({'error': "Member's outstanding debt exceeds KES. 500"}), 400
+
+    stock = db.session.query(Stock).filter_by(book_id=bookid).first()
+    if not stock or stock.available_quantity <= 0:
+        return jsonify({'error': 'Book not available'}), 404
+
+    # If all conditions are met, process the book issuing
+    new_transaction = Transaction(
+        book_id=bookid, 
+        member_id=memberid, 
+        issue_date=datetime.datetime.now(),
+        rent_fee=50  # Assuming starting rent fee is 0 and will be updated when book is returned
+    )
     stock.available_quantity -= 1
+
     db.session.add(new_transaction)
     db.session.commit()
 
