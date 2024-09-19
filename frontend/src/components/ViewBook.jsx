@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom'; // Import useParams to get id
 
 function ViewBook() {
+  const { id } = useParams(); // Extract the id from the URL parameters
   const [book, setBook] = useState(null);
   const [stock, setStock] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -19,10 +21,8 @@ function ViewBook() {
       .catch(error => {
         console.error('Error fetching book details:', error);
       });
-  }, []);
 
   if (!book || !stock) {
-    // Show loading state until the data is fetched
     return <div>Loading...</div>;
   }
 
@@ -70,28 +70,6 @@ function ViewBook() {
                 </tr>
               </thead>
               <tbody>
-                {transactions.map((trans) => (
-                  <tr key={trans.id}>
-                    <td>
-                      <Link to={`/view_member/${trans.member_id}`} className="text-primary">
-                        {trans.member_id}
-                      </Link>
-                    </td>
-                    <td>{new Date(trans.issue_date).toLocaleDateString()}</td>
-                    <td>
-                      {trans.return_date
-                        ? new Date(trans.return_date).toLocaleDateString()
-                        : 'Not returned yet'}
-                    </td>
-                    <td>{trans.rent_fee}</td>
-                    <td>
-                      <Link to={`/returnbook/${trans.id}`} className="btn btn-success">
-                        Manage
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
             </table>
           ) : (
             <p className="card-text">No transactions found for this book.</p>

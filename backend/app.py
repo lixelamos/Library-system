@@ -137,11 +137,9 @@ def view_book(id):
             {
                 'id': trans.id,
                 'issue_date': trans.issue_date,
-                'return_date': trans.return_date
             } for trans in transactions
         ]
     }), 200
-
 
 # View all members or search members
 @app.route('/view_members', methods=['GET', 'POST'])
